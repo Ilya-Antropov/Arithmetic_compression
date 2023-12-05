@@ -135,9 +135,90 @@ double encode(ifstream& f, ofstream& g){
     return sizeG / sizeF;
 }
 
+bool decode(ifstream& fg, ofstream& gf){
+    if (!fg.is_open()) {
+        return false;
+    }
+    int count=0;
+    int x1, x2;
+    char s;
+    map<char, int> m;
+    map <char, int> ::iterator ii;
+    fg.read((char*)&x1, sizeof(x1));
+    while (x1>0) {
+        fg.read((char*)&s, sizeof(s));
+        fg.read((char*)&x2, sizeof(x2));
+        x1-=40;
+        m[s]=x2;
+    }
+    list<Range> L;
+    for(ii=m.begin(); ii!=m.end(); ii++) {
+        Range p;
+        p.s=ii->first;
+        p.numb=ii->second;
+        L.push_back(p);
+    }
+    L.sort(Sort());
+    L.begin()->rb=L.begin()->numb;
+    L.begin()->lb=0;
+    list<Range>::iterator it=L.begin(), i2;
+    i2=it;
+    it++;
+    for(; it!=L.end(); it++) {
+        it->lb=i2->rb;
+        it->rb=it->lb+it->numb;
+        i2++;
+    }
+    count=0;
+    int l=0, h=65535, delitel=L.back().rb;
+    int F_q=(h+1)/4, Half=F_q*2, T_q=F_q*3;
+    int value=(fg.get()<<8) | fg.get();
+    char symbl=fg.get();
+    while(!fg.eof()) {
+        int freq = ((value - l + 1) * delitel - 1) / (h - l + 1);
+        for (it = L.begin(); it->rb <= freq; it++);
+        int l2 = l;
+        l = l + (it->lb) * (h - l + 1) / delitel;
+        h = l2 + (it->rb) * (h - l2 + 1) / delitel - 1;
+        for (;;) {
+            if (h < Half);
+            else if (l >= Half) {
+                l -= Half;
+                h -= Half;
+                value -= Half;
+            }
+            else if ((l >= F_q) && (h < T_q)) {
+                l -= F_q;
+                h -= F_q;
+                value -= F_q;
+            }
+            else break;
+            l += l;
+            h += h + 1;
+            value += value + (((short) symbl >> (7 - count)) & 1);
+            count++;
+            if (count == 8) {
+                symbl = fg.get();
+                count = 0;
+            }
+        }
+        gf << it->s;
+    }
+    fg.close();
+    gf.close();
+    return true;
+}
+
 int main() {
     ifstream f("text.txt", ios::out | ios::binary);
     ofstream g("code.txt", ios::out | ios::binary);
     double coef = encode(f, g);
     std::cout << coef << std::endl;
+    ifstream fg("code.txt", ios::out | ios::binary);
+    ofstream gf("output.txt", ios::out | ios::binary);
+    if (decode(fg,gf))
+        std::cout << "decode" << std::endl;
+    else
+        std::cout << "didnt decode" << std::endl;
+    return 0;
 }
